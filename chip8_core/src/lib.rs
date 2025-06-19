@@ -88,6 +88,63 @@ impl Emu {
         self.st = 0;
         self.ram[..FONTSET_SIZE].copy_from_slice(&FONTSET);
     }
+
+    pub fn tick(&mut self) {
+        // Fetch
+        let op = self.fetch();
+        // Decode
+        // Execute
+    }
+
+    pub fn fetch(&mut self) -> u16 {
+        // Fetch the next opcode from memory
+        let higher_byte = self.ram[self.pc as usize] as u16; // Es. 0x12
+        let lower_byte = self.ram[(self.pc + 1) as usize] as u16; // Es. 0x34
+        let op = (higher_byte << 8) | lower_byte; // Combine to form the opcode 0x1200 | 0x34 -> 0x1234
+        self.pc += 2;
+        op
+    }
+
+    pub fn execute(&mut self, op: u16) {
+        let digit1 = (op & 0xF000) >> 12; // First nibble
+        let digit2 = (op & 0x0F00) >> 8;
+        let digit3 = (op & 0x00F0) >> 4;
+        let digit4 = op & 0x000F; // Last nibble
+
+        match (digit1, digit2, digit3, digit4) {
+            (0, 0, 0, 0) => return,
+            // CLS
+            (0, 0, 0xE, 0) => {
+                self.screen = [false; SCREEN_WIDTH * SCREEN_HEIGHT];
+            }
+            // RET
+            (0, 0, 0xE, 0xE) => {
+                let ret_addr = self.pop();
+                self.pc = ret_addr;
+            }
+            // JMP NNN
+            (1, _, _, _) => {
+                let nnn = op & 0xFFF;
+                self.pc = nnn;
+            }
+            (_, _, _, _) => unimplemented!("Opcode {op:04X} not implemented yet"),
+        }
+    }
+
+    pub fn tick_timers(&mut self) {
+        if self.dt > 0 {
+            self.dt -= 1;
+        }
+
+        if self.st > 0 {
+            if self.st == 1 {
+                // Play sound (this is a placeholder, actual sound handling would be more complex)
+                println!("Beep!");
+            }
+
+            self.st -= 1;
+        }
+    }
 }
 
 impl Debug for Emu {
